@@ -68,8 +68,8 @@ const CITY_MAP = {
   "Baoji": "宝鸡", "Xianyang": "咸阳", "Yan'an": "延安", "Hanzhong": "汉中",
   "Hong Kong": "香港", "Kowloon": "九龙", "Macau": "澳门", "Macao": "澳门",
   "Taipei": "台北", "Kaohsiung": "高雄", "Taichung": "台中", "Tainan": "台南",
-  "Hsinchu": "新竹", "Keelung": "基隆", "Chiayi": "嘉义", "Taoyuan": "桃园",
-  "Tokyo": "东京", "Osaka": "大阪", "Yokohama": "横滨", "Nagoya": "名古屋",
+  "Hsinchu": "新竹", "Keelung": "基隆", "Chiayi": "嘉义", "Taoyuan": "桃园", "Poxin": "埔心",
+  "Tokyo": "东京", "Osaka": "大阪", "Yokohama": "横滨", "Nagoya": "名古屋", "Anyang-si": "安养市",
   "Sapporo": "札幌", "Fukuoka": "福冈", "Kobe": "神户", "Kyoto": "京都",
   "Kawasaki": "川崎", "Saitama": "埼玉", "Hiroshima": "广岛", "Sendai": "仙台",
   "Chiba": "千叶", "Kitakyushu": "北九州", "Sakai": "堺市", "Niigata": "新潟",
@@ -275,9 +275,7 @@ function getClientIP(request, url) {
     "1.1.1.1"
   );
 }
-
 async function getGeo(ip) {
-  // 优先使用 ip-api.com（支持 hosting 字段）
   try {
     const res = await fetch(
       `http://ip-api.com/json/${ip}?fields=status,country,countryCode,city,regionName,isp,org,as,hosting,query`,
@@ -295,15 +293,14 @@ async function getGeo(ip) {
     if (res.ok) {
       const data = await res.json();
       if (data && data.country) {
-        // 统一字段名
-        return {
+         return {
           country: data.country_name || data.country,
           countryCode: data.country_code || data.country,
           city: data.city,
           regionName: data.region,
           isp: data.org || data.asn,
           org: data.org,
-          hosting: false // ipapi.co 不提供 hosting 字段
+          hosting: false
         };
       }
     }
@@ -341,7 +338,6 @@ function generateHTML(countryCN, cityCN, ip, countryCode, networkType, isp) {
       color: white;
       padding: 20px;
     }
-    
     .container {
       text-align: center;
       background: rgba(255, 255, 255, 0.1);
@@ -353,7 +349,6 @@ function generateHTML(countryCN, cityCN, ip, countryCode, networkType, isp) {
       max-width: 500px;
       width: 100%;
     }
-    
     .flag {
       font-size: 100px;
       line-height: 1;
@@ -361,7 +356,6 @@ function generateHTML(countryCN, cityCN, ip, countryCode, networkType, isp) {
       font-family: 'Noto Color Emoji', 'Apple Color Emoji', 'Segoe UI Emoji';
       filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.2));
     }
-    
     .info-line {
       font-size: 20px;
       font-weight: 600;
@@ -374,7 +368,6 @@ function generateHTML(countryCN, cityCN, ip, countryCode, networkType, isp) {
       letter-spacing: 0.5px;
       line-height: 1.6;
     }
-    
     .info-line .label {
       font-size: 14px;
       opacity: 0.8;
@@ -382,12 +375,10 @@ function generateHTML(countryCN, cityCN, ip, countryCode, networkType, isp) {
       margin-bottom: 5px;
       font-weight: 400;
     }
-    
     .info-line .value {
       font-family: 'Courier New', monospace;
       font-weight: 700;
     }
-    
     .network-badge {
       display: inline-block;
       padding: 4px 12px;
@@ -397,15 +388,12 @@ function generateHTML(countryCN, cityCN, ip, countryCode, networkType, isp) {
       margin-left: 10px;
       font-weight: 500;
     }
-    
     .network-badge.hosting {
       background: rgba(255, 193, 7, 0.3);
     }
-    
     .network-badge.isp {
       background: rgba(76, 175, 80, 0.3);
     }
-    
     .tip {
       margin-top: 30px;
       padding-top: 25px;
@@ -413,7 +401,6 @@ function generateHTML(countryCN, cityCN, ip, countryCode, networkType, isp) {
       font-size: 14px;
       opacity: 0.8;
     }
-    
     @media (max-width: 600px) {
       .container {
         padding: 35px 30px;
@@ -434,37 +421,30 @@ function generateHTML(countryCN, cityCN, ip, countryCode, networkType, isp) {
 <body>
   <div class="container">
     <div class="flag">${flagEmoji}</div>
-    
     <div class="info-line">
       <span class="label">IP 地址</span>
       <span class="value">${ip}</span>
     </div>
-    
     <div class="info-line">
       <span class="label">网络类型</span>
       <span class="value">${networkType}</span>
       <span class="network-badge ${networkType === 'Hosting' ? 'hosting' : 'isp'}">${networkType === 'Hosting' ? '🖥️ 数据中心' : '🏠 家庭/企业网络'}</span>
     </div>
-    
     <div class="info-line">
       <span class="label">国家 / 地区</span>
       <span class="value">${countryName}${cityCN ? ' · ' + cityCN : ''}</span>
     </div>
-    
     ${isp ? `<div class="info-line">
       <span class="label">网络运营商</span>
       <span class="value" style="font-size: 16px;">${isp}</span>
     </div>` : ''}
-    
     <div class="tip">
-      💡 API调用地址: https://域名/?ip=你的ip
+      💡 API示例: https://ip.xuexi365.eu.org/?ip=114.114.114.114
     </div>
   </div>
 </body>
 </html>`;
 }
-
-// ======= 主函数 =======
 export default {
   async fetch(request) {
     const url = new URL(request.url);
