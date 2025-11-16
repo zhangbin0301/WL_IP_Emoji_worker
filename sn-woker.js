@@ -76,7 +76,7 @@ const CITY_MAP = {
   "Hamamatsu": "滨松", "Kumamoto": "熊本", "Sagamihara": "相模原", "Shizuoka": "静冈",
   "Okayama": "冈山", "Kagoshima": "鹿儿岛", "Hachioji": "八王子", "Funabashi": "船桥",
   "Nagasaki": "长崎", "Nara": "奈良", "Matsuyama": "松山", "Kanazawa": "金泽",
-  "Seoul": "首尔", "Busan": "釜山", "Incheon": "仁川", "Daegu": "大邱",
+  "Seoul": "首尔", "Busan": "釜山", "Incheon": "仁川", "Daegu": "大邱", "Yongin-si": "龙仁市",
   "Daejeon": "大田", "Gwangju": "光州", "Ulsan": "蔚山", "Suwon": "水原",
   "Changwon": "昌原", "Seongnam": "城南", "Goyang": "高阳", "Yongin": "龙仁",
   "Bucheon": "富川", "Cheongju": "清州", "Ansan": "安山", "Jeonju": "全州",
