@@ -268,32 +268,59 @@ async function translateToChineseOnline(text) {
 
 function getClientIP(request, url) {
   const ip = url.searchParams.get("ip");
+  console.log("IP from URL params:", ip);  // Debugging output
   if (ip && /^(\d{1,3}\.){3}\d{1,3}$/.test(ip)) return ip;
-  return (
-    request.headers.get("CF-Connecting-IP") ||
-    request.headers.get("X-Forwarded-For")?.split(",")[0] ||
-    "1.1.1.1"
-  );
+  
+  const headerIP = request.headers.get("CF-Connecting-IP") ||
+                   request.headers.get("X-Forwarded-For")?.split(",")[0] ||
+                   "1.1.1.1";
+  console.log("IP from headers:", headerIP);  // Debugging output
+  return headerIP;
 }
+
+
+// 新函数放在这里，与 getClientIP 平级
+function getClientIPv4(request) {
+  const ip = request.headers.get("CF-Connecting-IP") ||
+             request.headers.get("X-Forwarded-For")?.split(",")[0] ||
+             "1.1.1.1";
+  if (/^(\d{1,3}\.){3}\d{1,3}$/.test(ip)) {
+    return ip;
+  }
+  return null;
+}
+
+function getClientIPv6(request) {
+  const ip = request.headers.get("CF-Connecting-IP") ||
+             request.headers.get("X-Forwarded-For")?.split(",")[0];
+  if (ip && /^([0-9a-fA-F]{0,4}:){2,7}[0-9a-fA-F]{0,4}$/.test(ip)) {
+    return ip;
+  }
+  return null;
+}
+
+
+// 然后是 getGeo 函数
 async function getGeo(ip) {
   try {
-    const res = await fetch(
+    // 第一个备用 IP 地址查询 API
+    const res1 = await fetch(
       `http://ip-api.com/json/${ip}?fields=status,country,countryCode,city,regionName,isp,org,as,hosting,query`,
       { cf: { cacheTtl: 3600 } }
     );
-    if (res.ok) {
-      const data = await res.json();
+    if (res1.ok) {
+      const data = await res1.json();
       if (data && data.status === "success") {
         return data;
       }
     }
-  } catch {}
-  try {
-    const res = await fetch(`https://ipapi.co/${ip}/json/`, { cf: { cacheTtl: 3600 } });
-    if (res.ok) {
-      const data = await res.json();
+
+    // 第二个备用 IP 地址查询 API
+    const res2 = await fetch(`https://ipapi.co/${ip}/json/`, { cf: { cacheTtl: 3600 } });
+    if (res2.ok) {
+      const data = await res2.json();
       if (data && data.country) {
-         return {
+        return {
           country: data.country_name || data.country,
           countryCode: data.country_code || data.country,
           city: data.city,
@@ -304,10 +331,28 @@ async function getGeo(ip) {
         };
       }
     }
-  } catch {}
-  
+
+    // 第三个备用 IP 地址查询 API
+    const res3 = await fetch(`https://ipinfo.io/${ip}/json/`, { cf: { cacheTtl: 3600 } });
+    if (res3.ok) {
+      const data = await res3.json();
+      return {
+        country: data.country,
+        countryCode: data.country,
+        city: data.city,
+        regionName: data.region,
+        isp: data.org,
+        hosting: false
+      };
+    }
+
+  } catch (error) {
+    console.error('Error fetching geo data:', error);
+  }
+
   return null;
 }
+
 function generateHTML(countryCN, cityCN, ip, countryCode, networkType, isp) {
   const flagEmoji = countryCN.match(/[\u{1F1E6}-\u{1F1FF}]{2}/gu)?.[0] || '🌍';
   const countryName = countryCN.replace(/[\u{1F1E6}-\u{1F1FF}]{2}\s*/gu, '').trim();
@@ -445,11 +490,53 @@ function generateHTML(countryCN, cityCN, ip, countryCode, networkType, isp) {
 </body>
 </html>`;
 }
+
+
+
 export default {
   async fetch(request) {
     const url = new URL(request.url);
+    const pathname = url.pathname;
+
+    if (pathname === '/ipv4') {
+      const ipv4 = getClientIPv4(request);
+      if (ipv4) {
+        return new Response(ipv4, {
+          headers: {
+            "Content-Type": "text/plain;charset=utf-8",
+            "Access-Control-Allow-Origin": "*",
+            "Cache-Control": "public, max-age=300"
+          }
+        });
+      } else {
+        return new Response("No IPv4 address detected", {
+          status: 400,
+          headers: { "Content-Type": "text/plain;charset=utf-8" }
+        });
+      }
+    }
+
+    if (pathname === '/ipv6') {
+      const ipv6 = getClientIPv6(request);
+      if (ipv6) {
+        return new Response(ipv6, {
+          headers: {
+            "Content-Type": "text/plain;charset=utf-8",
+            "Access-Control-Allow-Origin": "*",
+            "Cache-Control": "public, max-age=300"
+          }
+        });
+      } else {
+        return new Response("No IPv6 address detected", {
+          status: 400,
+          headers: { "Content-Type": "text/plain;charset=utf-8" }
+        });
+      }
+    }
+
     const ip = getClientIP(request, url);
-    const geo = await getGeo(ip);
+    const geo = await getGeo(ip); // 依然保持原有获取地理信息的逻辑
+
     let countryCode = geo?.countryCode || geo?.country_code || request.cf?.country;
     let countryCN = COUNTRY_MAP[countryCode];
     if (!countryCN) {
@@ -481,13 +568,14 @@ export default {
         }
       }
     }
+
     const accept = request.headers.get("Accept") || "";
     const userAgent = request.headers.get("User-Agent") || "";
     const isBrowser = accept.includes("text/html") && !userAgent.match(/curl|wget|httpie|python|java|go-http/i);
     const isHosting = geo?.hosting === true || geo?.hosting === "true";
     const networkType = isHosting ? "Hosting" : "ISP";
     const isp = geo?.isp || geo?.org || geo?.as || "";
-    
+
     if (isBrowser) {
       return new Response(generateHTML(countryCN, cityCN, ip, countryCode || "XX", networkType, isp), {
         headers: {
