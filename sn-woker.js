@@ -223,7 +223,7 @@ const CITY_MAP = {
   "San Diego": "圣迭戈", "San Jose": "圣何塞", "San Antonio": "圣安东尼奥",
   "Santa Clara": "圣克拉拉", "Santa Monica": "圣莫尼卡", "El Paso": "埃尔帕索",
   "La Paz": "拉巴斯", "Las Cruces": "拉斯克鲁塞斯", "Des Moines": "得梅因",
-  "Baton Rouge": "巴吞鲁日", "Boca Raton": "博卡拉顿", "Costa Mesa": "科斯塔梅萨",
+  "Baton Rouge": "巴吞鲁日", "Boca Raton": "博卡拉顿", "Costa Mesa": "科斯塔梅萨", "Lauterbourg": "洛泰堡",
 };
 function extractChineseName(text) {
   if (!text) return null;
