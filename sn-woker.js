@@ -324,89 +324,78 @@ function getClientIPv6(request) {
   return null;
 }
 
-// 获取地理位置信息，增加了错误处理和缓存
+// 获取地理位置信息（优化版：并行请求，取最快响应）
 async function getGeo(ip) {
   // 验证 IP 格式
   const isIPv4 = /^(\d{1,3}\.){3}\d{1,3}$/.test(ip);
   const isIPv6 = /(?:^|:)(?:[0-9a-fA-F]{0,4}:?){1,8}(?:$|:)/.test(ip) && ip.includes(':');
-  
+
   if (!isIPv4 && !isIPv6) {
     console.warn(`Invalid IP format: ${ip}`);
     return null;
   }
-  
-  try {
-    // API 1: ip-api.com
-    try {
-      const res1 = await fetch(
+
+  // 定义并行任务列表
+  const tasks = [
+    // 任务 1: ip-api.com (支持字段多，通常最快)
+    (async () => {
+      const res = await fetch(
         `http://ip-api.com/json/${ip}?fields=status,country,countryCode,city,regionName,isp,org,as,hosting,query`,
-        { 
-          cf: { cacheTtl: 3600 },
-          signal: AbortSignal.timeout(5000) 
-        }
+        { signal: AbortSignal.timeout(3000) }
       );
-      if (res1.ok) {
-        const data = await res1.json();
-        if (data && data.status === "success") {
-          return data;
-        }
-      }
-    } catch (e) {
-      console.warn('IP-API failed:', e.message);
-    }
+      const data = await res.json();
+      if (data && data.status === "success") return data;
+      throw new Error('ip-api failed');
+    })(),
 
-    // API 2: ipapi.co
-    try {
-      const res2 = await fetch(`https://ipapi.co/${ip}/json/`, { 
-        cf: { cacheTtl: 3600 },
-        signal: AbortSignal.timeout(5000) 
+    // 任务 2: ipapi.co
+    (async () => {
+      const res = await fetch(`https://ipapi.co/${ip}/json/`, { 
+        signal: AbortSignal.timeout(3000) 
       });
-      if (res2.ok) {
-        const data = await res2.json();
-        if (data && data.country) {
-          return {
-            country: data.country_name || data.country,
-            countryCode: data.country_code || data.country,
-            city: data.city,
-            regionName: data.region,
-            isp: data.org || data.asn,
-            org: data.org,
-            hosting: false
-          };
-        }
+      const data = await res.json();
+      if (data && data.country) {
+        return {
+          country: data.country_name || data.country,
+          countryCode: data.country_code || data.country,
+          city: data.city,
+          regionName: data.region,
+          isp: data.org || data.asn,
+          org: data.org,
+          hosting: false
+        };
       }
-    } catch (e) {
-      console.warn('IPAPI.CO failed:', e.message);
-    }
+      throw new Error('ipapi.co failed');
+    })(),
 
-    // API 3: ipinfo.io
-    try {
-      const res3 = await fetch(`https://ipinfo.io/${ip}/json/`, { 
-        cf: { cacheTtl: 3600 },
-        signal: AbortSignal.timeout(5000) 
+    // 任务 3: ipinfo.io
+    (async () => {
+      const res = await fetch(`https://ipinfo.io/${ip}/json/`, { 
+        signal: AbortSignal.timeout(3000) 
       });
-      if (res3.ok) {
-        const data = await res3.json();
-        if (data && !data.error) {
-          return {
-            country: data.country,
-            countryCode: data.country,
-            city: data.city,
-            regionName: data.region,
-            isp: data.org,
-            hosting: data.anycast || false
-          };
-        }
+      const data = await res.json();
+      if (data && !data.error) {
+        return {
+          country: data.country,
+          countryCode: data.country,
+          city: data.city,
+          regionName: data.region,
+          isp: data.org,
+          hosting: data.anycast || false
+        };
       }
-    } catch (e) {
-      console.warn('IPINFO.IO failed:', e.message);
-    }
+      throw new Error('ipinfo.io failed');
+    })()
+  ];
 
+  try {
+    // 使用 Promise.any 同时发起请求，返回最快的一个
+    return await Promise.any(tasks);
   } catch (error) {
-    console.error('Error fetching geo data:', error);
+    // 只有当所有任务都失败（AggregateError）时才会走到这里
+    console.error('All Geo APIs failed');
+    return null;
   }
-
-  return null;
 }
 
 function generateHTML(countryCN, cityCN, ip, countryCode, networkType, isp) {
