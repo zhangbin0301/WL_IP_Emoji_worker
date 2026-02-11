@@ -496,6 +496,43 @@ function generateHTML(countryCN, cityCN, ip, countryCode, networkType, isp, host
     .network-badge.isp {
       background: rgba(76, 175, 80, 0.3);
     }
+    /* 双栈 IP 检测区域 */
+    .dual-stack {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      margin-top: 8px;
+    }
+    .ip-card {
+      background: rgba(255, 255, 255, 0.08);
+      border-radius: 10px;
+      padding: 12px 16px;
+      text-align: center;
+      opacity: 0;
+      animation: fadeIn 0.5s ease forwards;
+    }
+    .ip-card:nth-child(2) {
+      animation-delay: 0.1s;
+    }
+    .ip-card .ip-proto {
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 1.5px;
+      opacity: 0.6;
+      margin-bottom: 4px;
+    }
+    .ip-card .ip-addr {
+      font-family: 'Courier New', monospace;
+      font-weight: 700;
+      font-size: 16px;
+      word-break: break-all;
+      line-height: 1.4;
+    }
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(6px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
     .tip {
       margin-top: 30px;
       padding-top: 25px;
@@ -517,15 +554,27 @@ function generateHTML(countryCN, cityCN, ip, countryCode, networkType, isp, host
       .info-line .label {
         font-size: 12px;
       }
+      .ip-card .ip-addr {
+        font-size: 14px;
+      }
     }
   </style>
 </head>
 <body>
   <div class="container">
     <div class="flag">${flagEmoji}</div>
-    <div class="info-line">
-      <span class="label">IP 地址</span>
-      <span class="value">${safeIp}</span>
+    <div class="info-line" id="dual-stack-section">
+      <span class="label">IP 地址 · 双栈检测</span>
+      <div class="dual-stack">
+        <div class="ip-card" id="ipv4-row" style="display: none;">
+          <div class="ip-proto">IPv4</div>
+          <div class="ip-addr" id="ipv4-addr"></div>
+        </div>
+        <div class="ip-card" id="ipv6-row" style="display: none;">
+          <div class="ip-proto">IPv6</div>
+          <div class="ip-addr" id="ipv6-addr"></div>
+        </div>
+      </div>
     </div>
     <div class="info-line">
       <span class="label">网络类型</span>
@@ -544,6 +593,53 @@ function generateHTML(countryCN, cityCN, ip, countryCode, networkType, isp, host
       💡 API示例: https://${safeHostname}/?ip=114.114.114.114
     </div>
   </div>
+  <script>
+    // 双栈检测：使用外部 IPv4-only / IPv6-only 专用服务
+    // NOTE: 同域 /ipv4 和 /ipv6 无法真正检测双栈，因为浏览器对同一域名只用一种协议栈连接。
+    // api4.ipify.org 仅有 A 记录（强制 IPv4），api6.ipify.org 仅有 AAAA 记录（强制 IPv6）。
+    (function() {
+      var hasAny = false;
+
+      function detectStack(url, rowId, addrId) {
+        return fetch(url, { signal: AbortSignal.timeout(5000) })
+          .then(function(res) {
+            if (!res.ok) throw new Error(res.status);
+            return res.text();
+          })
+          .then(function(ip) {
+            var row = document.getElementById(rowId);
+            var addr = document.getElementById(addrId);
+            var safe = ip.trim().replace(/[<>"'&]/g, '');
+            row.style.display = 'block';
+            addr.textContent = safe;
+            hasAny = true;
+          })
+          .catch(function() {
+            // 该协议栈不可用，不显示该行
+          });
+      }
+
+      Promise.all([
+        detectStack('https://api4.ipify.org', 'ipv4-row', 'ipv4-addr'),
+        detectStack('https://api6.ipify.org', 'ipv6-row', 'ipv6-addr')
+      ]).then(function() {
+        if (!hasAny) {
+          var section = document.getElementById('dual-stack-section');
+          section.querySelector('.label').textContent = 'IP 地址';
+          section.querySelector('.dual-stack').innerHTML =
+            '<div class="ip-card" style="display:block;opacity:1;">' +
+            '<div class="ip-addr">${safeIp}</div></div>';
+        } else {
+          var v4 = document.getElementById('ipv4-row').style.display !== 'none';
+          var v6 = document.getElementById('ipv6-row').style.display !== 'none';
+          if (!(v4 && v6)) {
+            document.getElementById('dual-stack-section')
+              .querySelector('.label').textContent = 'IP 地址';
+          }
+        }
+      });
+    })();
+  </script>
 </body>
 </html>`;
 }
@@ -577,7 +673,20 @@ export default {
 
     // 处理 /ipv4 端点
     if (pathname === '/ipv4') {
-      const ipv4 = getClientIPv4(request);
+      // 优先从请求头反射 IPv4
+      let ipv4 = getClientIPv4(request);
+      // 回退：通过外部 IPv4-only 服务检测
+      if (!ipv4) {
+        try {
+          const res = await fetch('https://api4.ipify.org', { signal: AbortSignal.timeout(3000) });
+          if (res.ok) {
+            const text = (await res.text()).trim();
+            if (isValidIPv4(text)) ipv4 = text;
+          }
+        } catch {
+          // 外部服务不可用时静默降级
+        }
+      }
       if (ipv4) {
         return new Response(ipv4, {
           headers: {
@@ -601,7 +710,20 @@ export default {
 
     // 处理 /ipv6 端点
     if (pathname === '/ipv6') {
-      const ipv6 = getClientIPv6(request);
+      // 优先从请求头反射 IPv6
+      let ipv6 = getClientIPv6(request);
+      // 回退：通过外部 IPv6-only 服务检测
+      if (!ipv6) {
+        try {
+          const res = await fetch('https://api6.ipify.org', { signal: AbortSignal.timeout(3000) });
+          if (res.ok) {
+            const text = (await res.text()).trim();
+            if (isValidIPv6(text)) ipv6 = text;
+          }
+        } catch {
+          // 外部服务不可用时静默降级
+        }
+      }
       if (ipv6) {
         return new Response(ipv6, {
           headers: {
