@@ -344,50 +344,70 @@ async function getGeo(ip) {
   const tasks = [
     // HACK: ip-api.com 免费版仅支持 HTTP，付费版才支持 HTTPS
     (async () => {
-      const res = await fetch(
-        `http://ip-api.com/json/${ip}?fields=status,country,countryCode,city,regionName,isp,org,as,hosting,query`,
-        { signal: AbortSignal.timeout(3000) }
-      );
-      const data = await res.json();
-      if (data && data.status === "success") return data;
-      throw new Error('ip-api failed');
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 3000);
+      try {
+        const res = await fetch(
+          `http://ip-api.com/json/${ip}?fields=status,country,countryCode,city,regionName,isp,org,as,hosting,query`,
+          { signal: controller.signal }
+        );
+        const data = await res.json();
+        if (data && data.status === "success") return data;
+        throw new Error('ip-api failed');
+      } finally {
+        clearTimeout(timeoutId);
+      }
     })(),
 
     // 任务 2: ipapi.co (HTTPS)
     (async () => {
-      const res = await fetch(`https://ipapi.co/${ip}/json/`, {
-        signal: AbortSignal.timeout(3000)
-      });
-      const data = await res.json();
-      if (data && data.country) {
-        return {
-          country: data.country_name || data.country,
-          countryCode: data.country_code || data.country,
-          city: data.city,
-          regionName: data.region,
-          isp: data.org || data.asn,
-          org: data.org,
-          hosting: false
-        };
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 3000);
+      try {
+        const res = await fetch(`https://ipapi.co/${ip}/json/`, {
+          signal: controller.signal
+        });
+        const data = await res.json();
+        if (data && data.country) {
+          return {
+            country: data.country_name || data.country,
+            countryCode: data.country_code || data.country,
+            city: data.city,
+            regionName: data.region,
+            isp: data.org || data.asn,
+            org: data.org,
+            hosting: false
+          };
+        }
+      } catch {
+        // ignore
+      } finally {
+        clearTimeout(timeoutId);
       }
       throw new Error('ipapi.co failed');
     })(),
 
     // 任务 3: ipinfo.io (HTTPS)
     (async () => {
-      const res = await fetch(`https://ipinfo.io/${ip}/json/`, {
-        signal: AbortSignal.timeout(3000)
-      });
-      const data = await res.json();
-      if (data && !data.error) {
-        return {
-          country: data.country,
-          countryCode: data.country,
-          city: data.city,
-          regionName: data.region,
-          isp: data.org,
-          hosting: data.anycast || false
-        };
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 3000);
+      try {
+        const res = await fetch(`https://ipinfo.io/${ip}/json/`, {
+          signal: controller.signal
+        });
+        const data = await res.json();
+        if (data && !data.error) {
+          return {
+            country: data.country,
+            countryCode: data.country,
+            city: data.city,
+            regionName: data.region,
+            isp: data.org,
+            hosting: data.anycast || false
+          };
+        }
+      } catch {
+        // ignore
       }
       throw new Error('ipinfo.io failed');
     })()
@@ -514,14 +534,6 @@ function generateHTML(countryCN, cityCN, ip, countryCode, networkType, isp, host
     .ip-card:nth-child(2) {
       animation-delay: 0.1s;
     }
-    .ip-card .ip-proto {
-      font-size: 11px;
-      font-weight: 600;
-      text-transform: uppercase;
-      letter-spacing: 1.5px;
-      opacity: 0.6;
-      margin-bottom: 4px;
-    }
     .ip-card .ip-addr {
       font-family: 'Courier New', monospace;
       font-weight: 700;
@@ -567,11 +579,9 @@ function generateHTML(countryCN, cityCN, ip, countryCode, networkType, isp, host
       <span class="label">IP 地址 · 双栈检测</span>
       <div class="dual-stack">
         <div class="ip-card" id="ipv4-row" style="display: none;">
-          <div class="ip-proto">IPv4</div>
           <div class="ip-addr" id="ipv4-addr"></div>
         </div>
         <div class="ip-card" id="ipv6-row" style="display: none;">
-          <div class="ip-proto">IPv6</div>
           <div class="ip-addr" id="ipv6-addr"></div>
         </div>
       </div>
