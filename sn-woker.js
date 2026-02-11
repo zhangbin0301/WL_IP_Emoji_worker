@@ -30,7 +30,7 @@ const COUNTRY_MAP = {
   NG: "🇳🇬 尼日利亚", MK: "🇲🇰 北马其顿", NO: "🇳🇴 挪威", OM: "🇴🇲 阿曼", PK: "🇵🇰 巴基斯坦",
   PW: "🇵🇼 帕劳", PA: "🇵🇦 巴拿马", PG: "🇵🇬 巴布亚新几内亚", PY: "🇵🇾 巴拉圭", PE: "🇵🇪 秘鲁",
   PH: "🇵🇭 菲律宾", PL: "🇵🇱 波兰", PT: "🇵🇹 葡萄牙", QA: "🇶🇦 卡塔尔", RE: "🇷🇪 留尼汪",
-  RO: "🇷🇴 罗马尼亚", RU: "🇷🇺 俄罗斯", RW: "🇷🇼 卢旺达", KN: "🇰🇳 地基茨和尼维斯", LC: "🇱🇨 圣卢西亚",
+  RO: "🇷🇴 罗马尼亚", RU: "🇷🇺 俄罗斯", RW: "🇷🇼 卢旺达", KN: "🇰🇳 圣基茨和尼维斯", LC: "🇱🇨 圣卢西亚",
   VC: "🇻🇨 圣文森特和格林纳丁斯", WS: "🇼🇸 萨摩亚", SM: "🇸🇲 圣马力诺", ST: "🇸🇹 圣多美和普林西比",
   SA: "🇸🇦 沙特阿拉伯", SN: "🇸🇳 塞内加尔", RS: "🇷🇸 塞尔维亚", SC: "🇸🇨 塞舌尔", SL: "🇸🇱 塞拉利昂",
   SG: "🇸🇬 新加坡", SK: "🇸🇰 斯洛伐克", SI: "🇸🇮 斯洛文尼亚", SB: "🇸🇧 所罗门群岛", SO: "🇸🇴 索马里",
@@ -220,14 +220,22 @@ const CITY_MAP = {
   "The Villages": "村庄", "The Woodlands": "林地", "The Colony": "殖民地",
   "The Pas": "帕斯", "The Hills": "山区", "The Rocks": "岩石区",
   "The Gap": "峡口", "The Plains": "平原", "The Valley": "山谷",
-  "Las Vegas": "拉斯维加斯", "Los Angeles": "洛杉矶", "San Francisco": "旧金山",
-  "San Diego": "圣迭戈", "San Jose": "圣何塞", "San Antonio": "圣安东尼奥",
-  "Santa Clara": "圣克拉拉", "Santa Monica": "圣莫尼卡", "El Paso": "埃尔帕索",
-  "La Paz": "拉巴斯", "Las Cruces": "拉斯克鲁塞斯", "Des Moines": "得梅因",
+  "Santa Clara": "圣克拉拉", "Santa Monica": "圣莫尼卡",
+  "Las Cruces": "拉斯克鲁塞斯", "Des Moines": "得梅因",
   "Baton Rouge": "巴吞鲁日", "Boca Raton": "博卡拉顿", "Costa Mesa": "科斯塔梅萨", "Lauterbourg": "洛泰堡",
 };
 
-// 修复中文提取函数，移除调试输出
+// HTML 转义函数，防止 XSS 注入
+function escapeHtml(str) {
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
+}
+
+// 提取中文名称，过滤翻译 API 返回的噪声文本
 function extractChineseName(text) {
   if (!text) return null;
   const noisePatterns = [
@@ -248,64 +256,70 @@ function extractChineseName(text) {
   return null;
 }
 
-// 添加缓存机制以减少API调用
+// 翻译缓存，设置上限防止内存泄漏
 const translationCache = new Map();
+const MAX_CACHE_SIZE = 500;
 
 async function translateToChineseOnline(text) {
   if (!text || typeof text !== 'string') return null;
   const trimmed = text.trim();
   if (!trimmed) return null;
   if (/[\u4e00-\u9fa5]/.test(trimmed)) return trimmed;
-  
+
   // 检查缓存
   if (translationCache.has(trimmed)) {
     return translationCache.get(trimmed);
   }
-  
+
   try {
     const url = `https://translate.googleapis.com/translate_a/single?client=gtx&sl=auto&tl=zh-CN&dt=t&q=${encodeURIComponent(trimmed)}`;
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 3000);
-    
-    const res = await fetch(url, { 
+
+    const res = await fetch(url, {
       signal: controller.signal
     });
     clearTimeout(timeoutId);
-    
+
     if (!res.ok) return null;
     const data = await res.json();
     if (data && data[0] && data[0][0] && data[0][0][0]) {
       const result = extractChineseName(data[0][0][0]);
-      // 缓存结果
+      // 缓存淘汰：超出上限时移除最早的条目
+      if (translationCache.size >= MAX_CACHE_SIZE) {
+        const firstKey = translationCache.keys().next().value;
+        translationCache.delete(firstKey);
+      }
       translationCache.set(trimmed, result);
       return result;
     }
-  } catch (error) {
-    console.warn('Translation failed:', error.message);
+  } catch {
+    // NOTE: 翻译失败时静默降级，避免影响主流程
   }
   return null;
 }
 
+// 从请求头中提取原始客户端 IP，抽取公共逻辑避免重复
+function getRawIP(request) {
+  return request.headers.get("CF-Connecting-IP") ||
+    request.headers.get("X-Real-IP") ||
+    request.headers.get("X-Forwarded-For")?.split(",")[0]?.trim() ||
+    null;
+}
+
 function getClientIP(request, url) {
   // 优先使用 URL 参数中的 IP
-  const ip = url.searchParams.get("ip");
-  if (ip && /^(\d{1,3}\.){3}\d{1,3}$/.test(ip)) return ip;
-  
+  const paramIP = url.searchParams.get("ip");
+  if (paramIP && isValidIP(paramIP)) return paramIP;
+
   // 从请求头获取 IP
-  const headerIP = request.headers.get("CF-Connecting-IP") ||
-                   request.headers.get("X-Real-IP") ||
-                   request.headers.get("X-Forwarded-For")?.split(",")[0]?.trim() ||
-                   "1.1.1.1";
-  return headerIP;
+  return getRawIP(request) || "";
 }
 
 // 获取 IPv4 地址
 function getClientIPv4(request) {
-  const ip = request.headers.get("CF-Connecting-IP") ||
-             request.headers.get("X-Real-IP") ||
-             request.headers.get("X-Forwarded-For")?.split(",")[0]?.trim() ||
-             "1.1.1.1";
-  if (/^(\d{1,3}\.){3}\d{1,3}$/.test(ip)) {
+  const ip = getRawIP(request);
+  if (ip && isValidIPv4(ip)) {
     return ip;
   }
   return null;
@@ -313,12 +327,8 @@ function getClientIPv4(request) {
 
 // 获取 IPv6 地址
 function getClientIPv6(request) {
-  const ip = request.headers.get("CF-Connecting-IP") ||
-             request.headers.get("X-Real-IP") ||
-             request.headers.get("X-Forwarded-For")?.split(",")[0]?.trim();
-  
-  // 更准确的 IPv6 正则表达式
-  if (ip && (/(?:^|:)(?:[0-9a-fA-F]{0,4}:?){1,8}(?:$|:)/.test(ip) && ip.includes(':'))) {
+  const ip = getRawIP(request);
+  if (ip && isValidIPv6(ip)) {
     return ip;
   }
   return null;
@@ -326,18 +336,13 @@ function getClientIPv6(request) {
 
 // 获取地理位置信息（优化版：并行请求，取最快响应）
 async function getGeo(ip) {
-  // 验证 IP 格式
-  const isIPv4 = /^(\d{1,3}\.){3}\d{1,3}$/.test(ip);
-  const isIPv6 = /(?:^|:)(?:[0-9a-fA-F]{0,4}:?){1,8}(?:$|:)/.test(ip) && ip.includes(':');
-
-  if (!isIPv4 && !isIPv6) {
-    console.warn(`Invalid IP format: ${ip}`);
+  if (!isValidIP(ip)) {
     return null;
   }
 
   // 定义并行任务列表
   const tasks = [
-    // 任务 1: ip-api.com (支持字段多，通常最快)
+    // HACK: ip-api.com 免费版仅支持 HTTP，付费版才支持 HTTPS
     (async () => {
       const res = await fetch(
         `http://ip-api.com/json/${ip}?fields=status,country,countryCode,city,regionName,isp,org,as,hosting,query`,
@@ -348,10 +353,10 @@ async function getGeo(ip) {
       throw new Error('ip-api failed');
     })(),
 
-    // 任务 2: ipapi.co
+    // 任务 2: ipapi.co (HTTPS)
     (async () => {
-      const res = await fetch(`https://ipapi.co/${ip}/json/`, { 
-        signal: AbortSignal.timeout(3000) 
+      const res = await fetch(`https://ipapi.co/${ip}/json/`, {
+        signal: AbortSignal.timeout(3000)
       });
       const data = await res.json();
       if (data && data.country) {
@@ -368,10 +373,10 @@ async function getGeo(ip) {
       throw new Error('ipapi.co failed');
     })(),
 
-    // 任务 3: ipinfo.io
+    // 任务 3: ipinfo.io (HTTPS)
     (async () => {
-      const res = await fetch(`https://ipinfo.io/${ip}/json/`, { 
-        signal: AbortSignal.timeout(3000) 
+      const res = await fetch(`https://ipinfo.io/${ip}/json/`, {
+        signal: AbortSignal.timeout(3000)
       });
       const data = await res.json();
       if (data && !data.error) {
@@ -391,17 +396,24 @@ async function getGeo(ip) {
   try {
     // 使用 Promise.any 同时发起请求，返回最快的一个
     return await Promise.any(tasks);
-  } catch (error) {
-    // 只有当所有任务都失败（AggregateError）时才会走到这里
-    console.error('All Geo APIs failed');
+  } catch {
+    // 所有任务都失败（AggregateError）时静默返回 null
     return null;
   }
 }
 
-function generateHTML(countryCN, cityCN, ip, countryCode, networkType, isp) {
+function generateHTML(countryCN, cityCN, ip, countryCode, networkType, isp, hostname) {
   const flagEmoji = countryCN.match(/[\u{1F1E6}-\u{1F1FF}]{2}/gu)?.[0] || '🌍';
   const countryName = countryCN.replace(/[\u{1F1E6}-\u{1F1FF}]{2}\s*/gu, '').trim();
-  
+
+  // 对所有动态内容进行 HTML 转义，防止 XSS
+  const safeIp = escapeHtml(ip);
+  const safeCountryName = escapeHtml(countryName);
+  const safeCityCN = escapeHtml(cityCN);
+  const safeNetworkType = escapeHtml(networkType);
+  const safeIsp = escapeHtml(isp);
+  const safeHostname = escapeHtml(hostname);
+
   return `<!DOCTYPE html>
 <html lang="zh-CN">
 <head>
@@ -513,44 +525,49 @@ function generateHTML(countryCN, cityCN, ip, countryCode, networkType, isp) {
     <div class="flag">${flagEmoji}</div>
     <div class="info-line">
       <span class="label">IP 地址</span>
-      <span class="value">${ip}</span>
+      <span class="value">${safeIp}</span>
     </div>
     <div class="info-line">
       <span class="label">网络类型</span>
-      <span class="value">${networkType}</span>
+      <span class="value">${safeNetworkType}</span>
       <span class="network-badge ${networkType === 'Hosting' ? 'hosting' : 'isp'}">${networkType === 'Hosting' ? '🖥️ 数据中心' : '🏠 家庭/企业网络'}</span>
     </div>
     <div class="info-line">
       <span class="label">国家 / 地区</span>
-      <span class="value">${countryName}${cityCN ? ' · ' + cityCN : ''}</span>
+      <span class="value">${safeCountryName}${safeCityCN ? ' · ' + safeCityCN : ''}</span>
     </div>
-    ${isp ? `<div class="info-line">
+    ${safeIsp ? `<div class="info-line">
       <span class="label">网络运营商</span>
-      <span class="value" style="font-size: 16px;">${isp}</span>
+      <span class="value" style="font-size: 16px;">${safeIsp}</span>
     </div>` : ''}
     <div class="tip">
-      💡 API示例: https://your-domain.com/?ip=114.114.114.114
+      💡 API示例: https://${safeHostname}/?ip=114.114.114.114
     </div>
   </div>
 </body>
 </html>`;
 }
 
-// 辅助函数：验证 IP 地址格式
+// IPv4 格式与范围验证
+function isValidIPv4(ip) {
+  if (!/^(\d{1,3}\.){3}\d{1,3}$/.test(ip)) return false;
+  return ip.split('.').every(part => {
+    const num = parseInt(part, 10);
+    return num >= 0 && num <= 255;
+  });
+}
+
+// IPv6 验证：支持完整格式和 :: 缩写格式
+function isValidIPv6(ip) {
+  if (!ip.includes(':')) return false;
+  // 完整的 IPv6 验证正则
+  const ipv6Regex = /^([0-9a-fA-F]{1,4}:){7}[0-9a-fA-F]{1,4}$|^(([0-9a-fA-F]{1,4}:){0,6}[0-9a-fA-F]{1,4})?::([0-9a-fA-F]{1,4}(:[0-9a-fA-F]{1,4}){0,6})?$/;
+  return ipv6Regex.test(ip);
+}
+
+// 统一的 IP 验证入口
 function isValidIP(ip) {
-  // IPv4 验证
-  if (/^(\d{1,3}\.){3}\d{1,3}$/.test(ip)) {
-    const parts = ip.split('.');
-    return parts.every(part => parseInt(part, 10) >= 0 && parseInt(part, 10) <= 255);
-  }
-  
-  // IPv6 验证
-  if (/:/.test(ip)) {
-    // 简化的 IPv6 验证
-    return /(?:^|:)(?:[0-9a-fA-F]{0,4}:?){1,8}(?:$|:)/.test(ip);
-  }
-  
-  return false;
+  return isValidIPv4(ip) || isValidIPv6(ip);
 }
 
 export default {
@@ -574,7 +591,7 @@ export default {
       } else {
         return new Response("No valid IPv4 address detected", {
           status: 400,
-          headers: { 
+          headers: {
             "Content-Type": "text/plain;charset=utf-8",
             "Access-Control-Allow-Origin": "*"
           }
@@ -598,7 +615,7 @@ export default {
       } else {
         return new Response("No valid IPv6 address detected", {
           status: 400,
-          headers: { 
+          headers: {
             "Content-Type": "text/plain;charset=utf-8",
             "Access-Control-Allow-Origin": "*"
           }
@@ -608,7 +625,7 @@ export default {
 
     // 获取 IP 地址
     const ip = getClientIP(request, url);
-    
+
     // 验证 IP 地址
     if (!isValidIP(ip)) {
       return new Response("Invalid IP address format", {
@@ -616,7 +633,7 @@ export default {
         headers: { "Content-Type": "text/plain;charset=utf-8" }
       });
     }
-    
+
     // 获取地理位置信息
     const geo = await getGeo(ip);
 
@@ -639,7 +656,7 @@ export default {
         countryCN = "🌍 " + countryCN;
       }
     }
-    
+
     // 处理城市信息
     let city = geo?.city || geo?.regionName || geo?.region;
     let cityCN = "";
@@ -665,7 +682,7 @@ export default {
 
     // 根据客户端类型返回不同格式的响应
     if (isBrowser) {
-      return new Response(generateHTML(countryCN, cityCN, ip, countryCode || "XX", networkType, isp), {
+      return new Response(generateHTML(countryCN, cityCN, ip, countryCode || "XX", networkType, isp, url.hostname), {
         headers: {
           "Content-Type": "text/html;charset=utf-8",
           "Cache-Control": "public, max-age=1800",
