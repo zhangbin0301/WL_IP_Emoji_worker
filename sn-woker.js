@@ -7,7 +7,7 @@ const COUNTRY_MAP = {
   BO: "🇧🇴 玻利维亚", BA: "🇧🇦 波斯尼亚和黑塞哥维那", BW: "🇧🇼 博茨瓦纳", BR: "🇧🇷 巴西", BN: "🇧🇳 文莱",
   BG: "🇧🇬 保加利亚", BF: "🇧🇫 布基纳法索", BI: "🇧🇮 布隆迪", KH: "🇰🇭 柬埔寨", CM: "🇨🇲 喀麦隆",
   CA: "🇨🇦 加拿大", CV: "🇨🇻 佛得角", KY: "🇰🇾 开曼群岛", CF: "🇨🇫 中非共和国", TD: "🇹🇩 乍得",
-  CL: "🇨🇱 智利", CN: "🇨🇳 中国", HK: "🇭🇰 中国香港", MO: "🇲🇴 中国澳门", TW: "🇹🇼 中国台湾",
+  CL: "🇨🇱 智利", CN: "🇨🇳 中国", HK: "🇭🇰 中国香港", MO: "🇲🇴 中国澳门",   TW: "🇹🇼 中国台湾省",
   CO: "🇨🇴 哥伦比亚", KM: "🇰🇲 科摩罗", CG: "🇨🇬 刚果(布)", CD: "🇨🇩 刚果(金)", CR: "🇨🇷 哥斯达黎加",
   HR: "🇭🇷 克罗地亚", CU: "🇨🇺 古巴", CY: "🇨🇾 塞浦路斯", CZ: "🇨🇿 捷克", DK: "🇩🇰 丹麦",
   DJ: "🇩🇯 吉布提", DM: "🇩🇲 多米尼克", DO: "🇩🇴 多米尼加共和国", EC: "🇪🇨 厄瓜多尔", EG: "🇪🇬 埃及",
@@ -171,20 +171,20 @@ const CITY_MAP = {
   "Minneapolis": "明尼阿波利斯", "Wichita": "威奇托", "Arlington": "阿灵顿", "Tampa": "坦帕",
   "Toronto": "多伦多", "Montreal": "蒙特利尔", "Vancouver": "温哥华", "Calgary": "卡尔加里",
   "Edmonton": "埃德蒙顿", "Ottawa": "渥太华", "Winnipeg": "温尼伯", "Quebec City": "魁北克城",
-  "Hamilton": "汉密尔顿", "Kitchener": "基奇纳", "London": "伦敦", "Victoria": "维多利亚",
+  "Hamilton": "汉密尔顿", "Kitchener": "基奇纳", "Victoria": "维多利亚",
   "Mexico City": "墨西哥城", "Guadalajara": "瓜达拉哈拉", "Monterrey": "蒙特雷", "Puebla": "普埃布拉",
   "Tijuana": "蒂华纳", "Leon": "莱昂", "Juarez": "华雷斯", "Zapopan": "萨波潘",
   "Havana": "哈瓦那", "Santiago de Cuba": "圣地亚哥-德古巴", "Camaguey": "卡马圭",
   "Sao Paulo": "圣保罗", "Rio de Janeiro": "里约热内卢", "Brasilia": "巴西利亚", "Salvador": "萨尔瓦多",
   "Fortaleza": "福塔莱萨", "Belo Horizonte": "贝洛奥里藏特", "Manaus": "马瑙斯", "Curitiba": "库里蒂巴",
   "Recife": "累西腓", "Porto Alegre": "阿雷格里港", "Belem": "贝伦", "Goiania": "戈亚尼亚",
-  "Buenos Aires": "布宜诺斯艾利斯", "Cordoba": "科尔多瓦", "Rosario": "罗萨里奥", "Mendoza": "门多萨",
+  "Buenos Aires": "布宜诺斯艾利斯",   "Rosario": "罗萨里奥", "Mendoza": "门多萨",
   "La Plata": "拉普拉塔", "San Miguel de Tucuman": "图库曼", "Mar del Plata": "马德普拉塔",
   "Santiago": "圣地亚哥", "Valparaiso": "瓦尔帕莱索", "Concepcion": "康塞普西翁", "La Serena": "拉塞雷纳",
   "Lima": "利马", "Arequipa": "阿雷基帕", "Trujillo": "特鲁希略", "Chiclayo": "奇克拉约",
   "Bogota": "波哥大", "Medellin": "麦德林", "Cali": "卡利", "Barranquilla": "巴兰基亚",
   "Cartagena": "卡塔赫纳", "Cucuta": "库库塔", "Caracas": "加拉加斯", "Maracaibo": "马拉开波",
-  "Valencia": "巴伦西亚", "Barquisimeto": "巴基西梅托", "Quito": "基多", "Guayaquil": "瓜亚基尔",
+  "Barquisimeto": "巴基西梅托", "Quito": "基多", "Guayaquil": "瓜亚基尔",
   "Cuenca": "昆卡", "La Paz": "拉巴斯", "Santa Cruz": "圣克鲁斯", "Cochabamba": "科恰班巴",
   "Montevideo": "蒙得维的亚", "Asuncion": "亚松森", "Georgetown": "乔治敦", "Paramaribo": "帕拉马里博",
   "Cairo": "开罗", "Alexandria": "亚历山大", "Giza": "吉萨", "Shubra El-Kheima": "舒卜拉开马",
@@ -208,7 +208,7 @@ const CITY_MAP = {
   "Adelaide": "阿德莱德", "Gold Coast": "黄金海岸", "Newcastle": "纽卡斯尔", "Canberra": "堪培拉",
   "Sunshine Coast": "阳光海岸", "Wollongong": "卧龙岗", "Hobart": "霍巴特", "Geelong": "吉朗",
   "Townsville": "汤斯维尔", "Cairns": "凯恩斯", "Darwin": "达尔文", "Toowoomba": "图文巴",
-  "Auckland": "奥克兰", "Wellington": "惠灵顿", "Christchurch": "基督城", "Hamilton": "汉密尔顿",
+  "Auckland": "奥克兰", "Wellington": "惠灵顿", "Christchurch": "基督城",
   "Tauranga": "陶兰加", "Napier-Hastings": "内皮尔-黑斯廷斯", "Dunedin": "但尼丁", "Palmerston North": "北帕默斯顿",
   "Port Moresby": "莫尔兹比港", "Lae": "莱城", "Suva": "苏瓦", "Nadi": "南迪",
   "Apia": "阿皮亚", "Pago Pago": "帕果帕果", "Noumea": "努美阿", "Papeete": "帕皮提",
@@ -607,8 +607,16 @@ function generateHTML(countryCN, cityCN, ip, countryCode, networkType, isp, host
     // 双栈检测：使用外部 IPv4-only / IPv6-only 专用服务
     // NOTE: 同域 /ipv4 和 /ipv6 无法真正检测双栈，因为浏览器对同一域名只用一种协议栈连接。
     // api4.ipify.org 仅有 A 记录（强制 IPv4），api6.ipify.org 仅有 AAAA 记录（强制 IPv6）。
-    (function() {
+(function() {
       var hasAny = false;
+
+      function escapeHtml(str) {
+        return str.replace(/&/g, '&amp;')
+                  .replace(/</g, '&lt;')
+                  .replace(/>/g, '&gt;')
+                  .replace(/"/g, '&quot;')
+                  .replace(/'/g, '&#039;');
+      }
 
       function detectStack(url, rowId, addrId) {
         return fetch(url, { signal: AbortSignal.timeout(5000) })
@@ -619,7 +627,7 @@ function generateHTML(countryCN, cityCN, ip, countryCode, networkType, isp, host
           .then(function(ip) {
             var row = document.getElementById(rowId);
             var addr = document.getElementById(addrId);
-            var safe = ip.trim().replace(/[<>"'&]/g, '');
+            var safe = escapeHtml(ip.trim());
             row.style.display = 'block';
             addr.textContent = safe;
             hasAny = true;
