@@ -215,7 +215,7 @@ const CITY_MAP = {
   "Almaty": "阿拉木图", "Nur-Sultan": "努尔苏丹", "Shymkent": "奇姆肯特", "Karaganda": "卡拉干达",
   "Bishkek": "比什凯克", "Osh": "奥什", "Jalal-Abad": "贾拉拉巴德", "Dushanbe": "杜尚别",
   "Khujand": "苦盏", "Ashgabat": "阿什哈巴德", "Turkmenabat": "土库曼纳巴德",
-  "The Dalles": "达尔斯", "The Hague": "海牙", "The Bronx": "布朗克斯",
+  "The Dalles": "达尔斯", "The Bronx": "布朗克斯",
   "The Villages": "村庄", "The Woodlands": "林地", "The Colony": "殖民地",
   "The Pas": "帕斯", "The Hills": "山区", "The Rocks": "岩石区",
   "The Gap": "峡口", "The Plains": "平原", "The Valley": "山谷",
