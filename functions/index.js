@@ -201,7 +201,7 @@ const CITY_MAP = {
   "Kampala": "坎帕拉", "Kigali": "基加利", "Lusaka": "卢萨卡", "Harare": "哈拉雷",
   "Bulawayo": "布拉瓦约", "Maputo": "马普托", "Luanda": "罗安达", "Dakar": "达喀尔",
   "Abidjan": "阿比让", "Yamoussoukro": "亚穆苏克罗", "Bamako": "巴马科", "Ouagadougou": "瓦加杜古",
-  "Conakry": "科纳克里", "Freetown": "弗里敦", "Monrovia": "蒙罗维亚", "Tripoli": "的黎波里",
+  "Conakry": "科纳克里", "Freetown": "弗里敦", "Monrovia": "蒙罗维亚", 
   "Benghazi": "班加西", "Khartoum": "喀土穆", "Omdurman": "恩图曼", "Mogadishu": "摩加迪沙",
   "Antananarivo": "塔那那利佛", "Toamasina": "图阿马西纳", "Port Louis": "路易港",
   "Sydney": "悉尼", "Melbourne": "墨尔本", "Brisbane": "布里斯班", "Perth": "珀斯",
